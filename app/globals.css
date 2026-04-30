@@ -16,3 +16,13 @@ body {
   50% { box-shadow: 0 0 25px #ff00ff; }
   100% { box-shadow: 0 0 10px #ff00ff; }
 }
+@keyframes flicker {
+  0% { opacity: 1; text-shadow: 0 0 10px red; }
+  50% { opacity: 0.6; text-shadow: 0 0 30px darkred; }
+  100% { opacity: 1; text-shadow: 0 0 10px red; }
+}
+
+@keyframes pulse {
+  0% { filter: brightness(1); }
+  100% { filter: brightness(1.4); }
+}
