@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { db, auth } from "../firebase";
 import {
   collection,
   addDoc,
   getDocs,
   doc,
-  updateDoc,
   setDoc,
   getDoc,
+  updateDoc,
   query,
   orderBy,
   limit,
@@ -19,41 +19,33 @@ import {
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  onAuthStateChanged
+  onAuthStateChanged,
+  signOut
 } from "firebase/auth";
 
 export default function Home() {
 
   const ADMIN_EMAIL = "itzmahendrr@gmail.com";
 
-  // ================= AUTH =================
+  // AUTH
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [userId, setUserId] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
 
-  // ================= USER =================
+  // DATA
   const [user, setUser] = useState(null);
-
-  // ================= DARES =================
   const [dares, setDares] = useState([]);
-  const [dareText, setDareText] = useState("");
-  const [time, setTime] = useState(30);
-
-  // ================= TIMER =================
-  const [timers, setTimers] = useState({});
-
-  // ================= LEADERBOARD =================
   const [leaders, setLeaders] = useState([]);
-
-  // ================= CHAT =================
   const [messages, setMessages] = useState([]);
+
+  const [dareText, setDareText] = useState("");
   const [msg, setMsg] = useState("");
 
-  // ================= AUTH LISTENER =================
+  // AUTH LISTENER
   useEffect(() => {
-    onAuthStateChanged(auth, (u) => {
+    return onAuthStateChanged(auth, (u) => {
       if (u) {
         setUserId(u.uid);
         setCurrentUser(u);
@@ -61,19 +53,9 @@ export default function Home() {
     });
   }, []);
 
-  // ================= USERNAME CHECK =================
-  const usernameExists = async (name) => {
-    const snap = await getDoc(doc(db, "usernames", name));
-    return snap.exists();
-  };
-
-  // ================= SIGNUP =================
+  // SIGNUP
   const signup = async () => {
     if (!username) return alert("Enter username");
-
-    if (await usernameExists(username)) {
-      return alert("Username already taken 💀");
-    }
 
     const res = await createUserWithEmailAndPassword(auth, email, password);
 
@@ -81,60 +63,54 @@ export default function Home() {
       username,
       email,
       points: 0,
-      level: 0,
       accepted: 0,
       passed: 0,
-      rewards: [],
-      dareResponses: {}, // 🔥 LOCK SYSTEM
-      isPro: false,
+      dareResponses: {},
       createdAt: new Date()
-    });
-
-    await setDoc(doc(db, "usernames", username), {
-      uid: res.user.uid
     });
 
     setUserId(res.user.uid);
   };
 
-  // ================= LOGIN =================
+  // LOGIN
   const login = async () => {
     const res = await signInWithEmailAndPassword(auth, email, password);
     setUserId(res.user.uid);
   };
 
-  // ================= INIT USER =================
-  const initUser = async () => {
-    if (!userId) return;
-
-    const ref = doc(db, "users", userId);
-    const snap = await getDoc(ref);
-
-    if (snap.exists()) {
-      const data = snap.data();
-      data.level = Math.floor(data.points / 500);
-      setUser(data);
-    }
+  // LOGOUT
+  const logout = async () => {
+    await signOut(auth);
+    setUserId(null);
+    setUser(null);
+    setCurrentUser(null);
   };
 
-  // ================= DARES =================
+  // INIT USER
+  const initUser = async () => {
+    if (!userId) return;
+    const snap = await getDoc(doc(db, "users", userId));
+    if (snap.exists()) setUser(snap.data());
+  };
+
+  // FETCH DARES
   const fetchDares = async () => {
     const snap = await getDocs(collection(db, "dares"));
     setDares(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   };
 
-  // ================= LEADERBOARD =================
+  // LEADERBOARD
   const fetchLeaderboard = () => {
     const q = query(collection(db, "users"), orderBy("points", "desc"), limit(10));
-    onSnapshot(q, (snap) => {
+    onSnapshot(q, snap => {
       setLeaders(snap.docs.map(d => d.data()));
     });
   };
 
-  // ================= CHAT =================
+  // CHAT
   const fetchChat = () => {
     const q = query(collection(db, "chat"), orderBy("createdAt"));
-    onSnapshot(q, (snap) => {
+    onSnapshot(q, snap => {
       setMessages(snap.docs.map(d => d.data()));
     });
   };
@@ -151,64 +127,20 @@ export default function Home() {
     setMsg("");
   };
 
-  // ================= TIMER =================
-  const startTimer = (id, seconds) => {
-    if (timers[id]) return;
+  const isLocked = (id) => user?.dareResponses?.[id];
 
-    setTimers(prev => ({ ...prev, [id]: seconds }));
-
-    const interval = setInterval(() => {
-      setTimers(prev => {
-        const t = prev[id] - 1;
-
-        if (t <= 0) {
-          clearInterval(interval);
-
-          const copy = { ...prev };
-          delete copy[id];
-
-          autoFail();
-          return copy;
-        }
-
-        return { ...prev, [id]: t };
-      });
-    }, 1000);
-  };
-
-  const autoFail = async () => {
-    if (!user) return;
-
-    await updateDoc(doc(db, "users", userId), {
-      points: user.points - 200,
-      passed: user.passed + 1
-    });
-
-    initUser();
-  };
-
-  // ================= LOCK CHECK =================
-  const isLocked = (dareId) => {
-    return user?.dareResponses?.[dareId];
-  };
-
-  // ================= ACCEPT =================
   const accept = async (d) => {
     if (!user || isLocked(d.id)) return;
 
-    const newPoints = user.points + 100;
-
     await updateDoc(doc(db, "users", userId), {
-      points: newPoints,
+      points: user.points + 100,
       accepted: user.accepted + 1,
       [`dareResponses.${d.id}`]: "accepted"
     });
 
-    startTimer(d.id, d.time || 30);
     initUser();
   };
 
-  // ================= PASS =================
   const pass = async (d) => {
     if (!user || isLocked(d.id)) return;
 
@@ -221,21 +153,6 @@ export default function Home() {
     initUser();
   };
 
-  // ================= CREATE DARE =================
-  const createDare = async () => {
-    if (currentUser?.email !== ADMIN_EMAIL) return;
-
-    await addDoc(collection(db, "dares"), {
-      text: dareText,
-      time,
-      createdAt: new Date()
-    });
-
-    setDareText("");
-    fetchDares();
-  };
-
-  // ================= LOAD =================
   useEffect(() => {
     if (userId) {
       initUser();
@@ -245,109 +162,89 @@ export default function Home() {
     }
   }, [userId]);
 
-  // ================= UI =================
   return (
-    <div className="cyber">
+    <div style={styles.bg}>
 
-      <style jsx>{`
-        .cyber {
-          background: radial-gradient(circle, #0a0a0a, black);
-          color: #0ff;
-          min-height: 100vh;
-          padding: 20px;
-          font-family: monospace;
-        }
-
-        .box {
-          border: 1px solid #0ff;
-          padding: 10px;
-          margin: 10px;
-          background: rgba(0,255,255,0.05);
-        }
-
-        button {
-          background: black;
-          color: #0ff;
-          border: 1px solid #0ff;
-          margin: 4px;
-        }
-
-        button:hover {
-          box-shadow: 0 0 10px #0ff;
-        }
-
-        input {
-          background: black;
-          color: #0ff;
-          border: 1px solid #0ff;
-        }
-      `}</style>
-
-      <h1>😈 DARE DEVIL PRO</h1>
-
-      {/* LOGIN */}
+      {/* 🌌 LOGIN — ANIME 3D DEVIL SCENE */}
       {!userId && (
-        <div className="box">
-          <input placeholder="Email" onChange={e => setEmail(e.target.value)} />
-          <input placeholder="Password" type="password" onChange={e => setPassword(e.target.value)} />
-          <input placeholder="Username" onChange={e => setUsername(e.target.value)} />
+        <div style={styles.scene}>
 
-          <button onClick={signup}>SIGNUP</button>
-          <button onClick={login}>LOGIN</button>
+          <div style={styles.glow}></div>
+
+          <div style={styles.characterWrap}>
+            <img
+              src="https://i.imgur.com/8Qf6vQp.png"
+              style={styles.character}
+              alt="devil"
+            />
+            <h1 style={styles.title}>☠ Welcome Soul</h1>
+            <p style={styles.sub}>Enter the Dare Realm</p>
+          </div>
+
+          <div style={styles.box}>
+            <input placeholder="Email" onChange={e => setEmail(e.target.value)} style={styles.input} />
+            <input placeholder="Password" type="password" onChange={e => setPassword(e.target.value)} style={styles.input} />
+            <input placeholder="Username" onChange={e => setUsername(e.target.value)} style={styles.input} />
+
+            <button onClick={signup} style={styles.btn}>ENTER HELL</button>
+            <button onClick={login} style={styles.btnGhost}>RETURN SOUL</button>
+          </div>
+
         </div>
       )}
 
-      {/* DASHBOARD */}
+      {/* ⚔ DASHBOARD */}
       {userId && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr 1fr" }}>
+        <div style={styles.grid}>
 
           {/* PROFILE */}
-          <div className="box">
+          <div>
             <h2>{user?.username}</h2>
-            <p>Points: {user?.points}</p>
-            <p>Level: {user?.level}</p>
+            <p>XP: {user?.points}</p>
+
+            <button onClick={logout} style={styles.logout}>
+              Logout
+            </button>
           </div>
 
           {/* DARES */}
-          <div className="box">
+          <div>
             <h2>Dares</h2>
 
             {currentUser?.email === ADMIN_EMAIL && (
               <div>
                 <input value={dareText} onChange={e => setDareText(e.target.value)} />
-                <input type="number" value={time} onChange={e => setTime(+e.target.value)} />
-                <button onClick={createDare}>CREATE</button>
+                <button onClick={() =>
+                  addDoc(collection(db, "dares"), {
+                    text: dareText,
+                    createdAt: new Date()
+                  })
+                }>
+                  Create
+                </button>
               </div>
             )}
 
             {dares.map(d => (
               <div key={d.id}>
                 <p>{d.text}</p>
-                {timers[d.id] && <p>⏳ {timers[d.id]}s</p>}
 
-                <button
-                  disabled={isLocked(d.id)}
-                  onClick={() => accept(d)}
-                >
-                  ACCEPT
+                <button disabled={isLocked(d.id)} onClick={() => accept(d)}>
+                  Accept
                 </button>
 
-                <button
-                  disabled={isLocked(d.id)}
-                  onClick={() => pass(d)}
-                >
-                  PASS
+                <button disabled={isLocked(d.id)} onClick={() => pass(d)}>
+                  Pass
                 </button>
               </div>
             ))}
           </div>
 
           {/* SOCIAL */}
-          <div className="box">
-
-            <h2>🏆 Leaderboard</h2>
+          <div>
+            <h2>🏆 Leaders</h2>
             {leaders.map((u, i) => (
-              <p key={i}>#{i+1} {u.username} - {u.points}</p>
+              <p key={i}>#{i + 1} {u.username} - {u.points}</p>
             ))}
 
             <h2>💬 Chat</h2>
@@ -359,13 +256,101 @@ export default function Home() {
             </div>
 
             <input value={msg} onChange={e => setMsg(e.target.value)} />
-            <button onClick={sendMessage}>SEND</button>
-
+            <button onClick={sendMessage}>Send</button>
           </div>
 
         </div>
       )}
-
     </div>
   );
 }
+
+/* ================= CYBER ANIME STYLES ================= */
+
+const styles = {
+
+  bg: {
+    background: "#05010a",
+    color: "#0ff",
+    minHeight: "100vh",
+    fontFamily: "monospace"
+  },
+
+  scene: {
+    height: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+
+  glow: {
+    position: "absolute",
+    width: 400,
+    height: 400,
+    background: "radial-gradient(circle, purple, transparent)",
+    filter: "blur(120px)",
+    opacity: 0.4
+  },
+
+  characterWrap: {
+    textAlign: "center"
+  },
+
+  character: {
+    width: 180,
+    filter: "drop-shadow(0 0 25px purple)",
+    animation: "float 3s infinite ease-in-out"
+  },
+
+  title: {
+    color: "#ff00ff"
+  },
+
+  sub: {
+    color: "#aaa"
+  },
+
+  box: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    padding: 20,
+    border: "1px solid purple",
+    background: "rgba(0,0,0,0.5)"
+  },
+
+  input: {
+    padding: 10,
+    background: "black",
+    border: "1px solid purple",
+    color: "white"
+  },
+
+  btn: {
+    background: "purple",
+    padding: 10,
+    color: "white"
+  },
+
+  btnGhost: {
+    background: "transparent",
+    border: "1px solid purple",
+    color: "purple",
+    padding: 10
+  },
+
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 2fr 1fr",
+    gap: 20,
+    padding: 20
+  },
+
+  logout: {
+    background: "red",
+    color: "white",
+    border: "none",
+    padding: 8
+  }
+};

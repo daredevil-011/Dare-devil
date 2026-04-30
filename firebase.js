@@ -1,12 +1,12 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";  // ✅ ADD THIS
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyChvHowklN9mcr1ACcxLE4OjxINES8vCsg",
   authDomain: "dare-devil-98e0a.firebaseapp.com",
   projectId: "dare-devil-98e0a",
-  storageBucket: "dare-devil-98e0a.firebasestorage.app",
+  storageBucket: "dare-devil-98e0a.appspot.com",
   messagingSenderId: "172409735257",
   appId: "1:172409735257:web:c011de52ed97ede2af8948",
   measurementId: "G-W9L5VDHWVS"
