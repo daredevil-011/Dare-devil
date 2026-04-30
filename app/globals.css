@@ -1,28 +1,181 @@
-body {
+/* ================= BASE RESET ================= */
+
+* {
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
   background: black;
+  color: white;
   font-family: monospace;
+  overflow-x: hidden;
 }
 
-@keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-12px); }
-  100% { transform: translateY(0px); }
+/* ================= CYBER HELL BACKGROUND ================= */
+
+body {
+  background: radial-gradient(circle at top, #1a001f, #000);
 }
 
-@keyframes glow {
-  0% { box-shadow: 0 0 10px #ff00ff; }
-  50% { box-shadow: 0 0 25px #ff00ff; }
-  100% { box-shadow: 0 0 10px #ff00ff; }
-}
-@keyframes flicker {
-  0% { opacity: 1; text-shadow: 0 0 10px red; }
-  50% { opacity: 0.6; text-shadow: 0 0 30px darkred; }
-  100% { opacity: 1; text-shadow: 0 0 10px red; }
-}
+/* ================= FIRE PULSE ANIMATION ================= */
 
 @keyframes pulse {
-  0% { filter: brightness(1); }
-  100% { filter: brightness(1.4); }
+  0% {
+    filter: brightness(1);
+    transform: scale(1);
+  }
+  100% {
+    filter: brightness(1.4);
+    transform: scale(1.02);
+  }
+}
+
+/* ================= FLOAT DEVIL ANIMATION ================= */
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+/* ================= SCREEN SHAKE (FOR LOGIN EFFECTS) ================= */
+
+@keyframes shake {
+  0% { transform: translate(0px, 0px); }
+  25% { transform: translate(2px, -2px); }
+  50% { transform: translate(-2px, 2px); }
+  75% { transform: translate(2px, 2px); }
+  100% { transform: translate(0px, 0px); }
+}
+
+/* ================= GLOW EFFECT ================= */
+
+.glow {
+  box-shadow:
+    0 0 10px red,
+    0 0 20px red,
+    0 0 40px darkred;
+}
+
+/* ================= SCROLLBAR (CYBER STYLE) ================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: black;
+}
+
+::-webkit-scrollbar-thumb {
+  background: red;
+  border-radius: 10px;
+}
+
+/* ================= INPUT FOCUS ================= */
+
+input:focus {
+  outline: none;
+  box-shadow: 0 0 10px red;
+}
+
+/* ================= BUTTON HOVER ================= */
+
+button {
+  transition: 0.2s ease;
+}
+
+button:hover {
+  transform: scale(1.05);
+  filter: brightness(1.2);
+}
+
+/* ================= TEXT GLOW ================= */
+
+h1, h2 {
+  text-shadow: 0 0 10px red, 0 0 20px darkred;
+}
+
+/* ================= DEVIL CINEMATIC OVERLAY ================= */
+
+.hell-overlay {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at center, rgba(255, 0, 0, 0.25), transparent 60%),
+    radial-gradient(circle at top, rgba(0, 0, 0, 1), black);
+  animation: pulse 4s infinite alternate;
+  pointer-events: none;
+}
+
+/* ================= FIRE FOG EFFECT ================= */
+
+.fog {
+  position: fixed;
+  inset: 0;
+  background: url("https://i.imgur.com/3M5Y8XH.png");
+  opacity: 0.08;
+  animation: float 10s infinite linear;
+  pointer-events: none;
+}
+
+/* ================= LOGIN CARD ================= */
+
+.login-card {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid red;
+  padding: 20px;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+}
+
+/* ================= DEVIL GLOW TITLE ================= */
+
+.title-devil {
+  font-size: 40px;
+  color: red;
+  text-shadow:
+    0 0 10px red,
+    0 0 20px darkred,
+    0 0 40px crimson;
+  animation: shake 3s infinite;
+}
+
+/* ================= DASHBOARD CARD ================= */
+
+.card {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid #ff0033;
+  border-radius: 10px;
+  padding: 15px;
+  box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
+}
+
+/* ================= CHAT BOX ================= */
+
+.chat-box {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid red;
+}
+
+/* ================= LOADING DEVIL GLOW ================= */
+
+.loading {
+  color: red;
+  text-align: center;
+  animation: pulse 1.5s infinite;
 }
