@@ -26,37 +26,32 @@ export default function Home() {
 
   const ADMIN_EMAIL = "itzmahendrr@gmail.com";
 
+  // ================= AUTH =================
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
   const [userId, setUserId] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
 
+  // ================= USER =================
   const [user, setUser] = useState(null);
 
-  const [dare, setDare] = useState("");
+  // ================= DARES =================
   const [dares, setDares] = useState([]);
+  const [dareText, setDareText] = useState("");
   const [time, setTime] = useState(30);
 
-  const [activeTimers, setActiveTimers] = useState({});
+  // ================= TIMER =================
+  const [timers, setTimers] = useState({});
 
-  // 🏆 Leaderboard
+  // ================= LEADERBOARD =================
   const [leaders, setLeaders] = useState([]);
 
-  // 💬 Chat
+  // ================= CHAT =================
   const [messages, setMessages] = useState([]);
   const [msg, setMsg] = useState("");
 
-  // 🔐 Auth
-  const signup = async () => {
-    const res = await createUserWithEmailAndPassword(auth, email, password);
-    setUserId(res.user.uid);
-  };
-
-  const login = async () => {
-    const res = await signInWithEmailAndPassword(auth, email, password);
-    setUserId(res.user.uid);
-  };
-
+  // ================= AUTH LISTENER =================
   useEffect(() => {
     onAuthStateChanged(auth, (u) => {
       if (u) {
@@ -66,103 +61,114 @@ export default function Home() {
     });
   }, []);
 
-  // 👤 User init
+  // ================= USERNAME CHECK =================
+  const usernameExists = async (name) => {
+    const snap = await getDoc(doc(db, "usernames", name));
+    return snap.exists();
+  };
+
+  // ================= SIGNUP =================
+  const signup = async () => {
+    if (!username) return alert("Enter username");
+
+    if (await usernameExists(username)) {
+      return alert("Username already taken 💀");
+    }
+
+    const res = await createUserWithEmailAndPassword(auth, email, password);
+
+    await setDoc(doc(db, "users", res.user.uid), {
+      username,
+      email,
+      points: 0,
+      level: 0,
+      accepted: 0,
+      passed: 0,
+      rewards: [],
+      dareResponses: {}, // 🔥 LOCK SYSTEM
+      isPro: false,
+      createdAt: new Date()
+    });
+
+    await setDoc(doc(db, "usernames", username), {
+      uid: res.user.uid
+    });
+
+    setUserId(res.user.uid);
+  };
+
+  // ================= LOGIN =================
+  const login = async () => {
+    const res = await signInWithEmailAndPassword(auth, email, password);
+    setUserId(res.user.uid);
+  };
+
+  // ================= INIT USER =================
   const initUser = async () => {
     if (!userId) return;
 
     const ref = doc(db, "users", userId);
     const snap = await getDoc(ref);
 
-    if (!snap.exists()) {
-      await setDoc(ref, {
-        points: 0,
-        accepted: 0,
-        passed: 0,
-        rewards: []
-      });
+    if (snap.exists()) {
+      const data = snap.data();
+      data.level = Math.floor(data.points / 500);
+      setUser(data);
     }
-
-    setUser((await getDoc(ref)).data());
   };
 
-  // 📥 Fetch dares
+  // ================= DARES =================
   const fetchDares = async () => {
-    const data = await getDocs(collection(db, "dares"));
-    setDares(data.docs.map(d => ({ id: d.id, ...d.data() })));
+    const snap = await getDocs(collection(db, "dares"));
+    setDares(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   };
 
-  // 🏆 Leaderboard fetch
+  // ================= LEADERBOARD =================
   const fetchLeaderboard = () => {
-    const q = query(collection(db, "users"), orderBy("points", "desc"), limit(5));
+    const q = query(collection(db, "users"), orderBy("points", "desc"), limit(10));
     onSnapshot(q, (snap) => {
       setLeaders(snap.docs.map(d => d.data()));
     });
   };
 
-  // 💬 Chat listener
-  const fetchMessages = () => {
-    const q = query(collection(db, "chat"), orderBy("createdAt", "asc"));
+  // ================= CHAT =================
+  const fetchChat = () => {
+    const q = query(collection(db, "chat"), orderBy("createdAt"));
     onSnapshot(q, (snap) => {
       setMessages(snap.docs.map(d => d.data()));
     });
   };
 
-  // 💬 Send message
   const sendMessage = async () => {
     if (!msg) return;
 
     await addDoc(collection(db, "chat"), {
       text: msg,
-      user: currentUser.email,
+      user: user?.username,
       createdAt: new Date()
     });
 
     setMsg("");
   };
 
-  // 🎁 Rewards
-  const checkRewards = async (points) => {
-    const ref = doc(db, "users", userId);
-    const snap = await getDoc(ref);
-    let rewards = snap.data().rewards || [];
-
-    if (points >= 500 && !rewards.includes("Rookie Devil")) rewards.push("Rookie Devil");
-    if (points >= 1000 && !rewards.includes("Dark Player")) rewards.push("Dark Player");
-    if (points >= 2000 && !rewards.includes("King of Hell")) rewards.push("King of Hell");
-
-    await updateDoc(ref, { rewards });
-  };
-
-  // 😈 Create dare
-  const createDare = async () => {
-    if (currentUser?.email !== ADMIN_EMAIL) return alert("Admin only");
-
-    await addDoc(collection(db, "dares"), {
-      text: dare,
-      time: time,
-      createdAt: new Date()
-    });
-
-    setDare("");
-    fetchDares();
-  };
-
-  // ⏳ Timer
+  // ================= TIMER =================
   const startTimer = (id, seconds) => {
-    if (activeTimers[id]) return;
+    if (timers[id]) return;
 
-    setActiveTimers(prev => ({ ...prev, [id]: seconds }));
+    setTimers(prev => ({ ...prev, [id]: seconds }));
 
     const interval = setInterval(() => {
-      setActiveTimers(prev => {
+      setTimers(prev => {
         const t = prev[id] - 1;
 
         if (t <= 0) {
           clearInterval(interval);
+
+          const copy = { ...prev };
+          delete copy[id];
+
           autoFail();
-          const updated = { ...prev };
-          delete updated[id];
-          return updated;
+          return copy;
         }
 
         return { ...prev, [id]: t };
@@ -178,110 +184,188 @@ export default function Home() {
       passed: user.passed + 1
     });
 
-    alert("⏰ Time up!");
     initUser();
   };
 
-  const acceptDare = async (d) => {
-    if (!user) return;
+  // ================= LOCK CHECK =================
+  const isLocked = (dareId) => {
+    return user?.dareResponses?.[dareId];
+  };
+
+  // ================= ACCEPT =================
+  const accept = async (d) => {
+    if (!user || isLocked(d.id)) return;
 
     const newPoints = user.points + 100;
 
     await updateDoc(doc(db, "users", userId), {
       points: newPoints,
-      accepted: user.accepted + 1
+      accepted: user.accepted + 1,
+      [`dareResponses.${d.id}`]: "accepted"
     });
 
     startTimer(d.id, d.time || 30);
-    await checkRewards(newPoints);
     initUser();
   };
 
-  const passDare = async () => {
-    if (!user) return;
+  // ================= PASS =================
+  const pass = async (d) => {
+    if (!user || isLocked(d.id)) return;
 
     await updateDoc(doc(db, "users", userId), {
       points: user.points - 200,
-      passed: user.passed + 1
+      passed: user.passed + 1,
+      [`dareResponses.${d.id}`]: "passed"
     });
 
     initUser();
   };
 
-  // 🔄 Load
+  // ================= CREATE DARE =================
+  const createDare = async () => {
+    if (currentUser?.email !== ADMIN_EMAIL) return;
+
+    await addDoc(collection(db, "dares"), {
+      text: dareText,
+      time,
+      createdAt: new Date()
+    });
+
+    setDareText("");
+    fetchDares();
+  };
+
+  // ================= LOAD =================
   useEffect(() => {
     if (userId) {
       initUser();
       fetchDares();
       fetchLeaderboard();
-      fetchMessages();
+      fetchChat();
     }
   }, [userId]);
 
+  // ================= UI =================
   return (
-    <div style={{ background: "#0f0f0f", color: "#fff", padding: 20 }}>
+    <div className="cyber">
 
-      <h1 style={{ color: "red" }}>Dare Devil 😈</h1>
+      <style jsx>{`
+        .cyber {
+          background: radial-gradient(circle, #0a0a0a, black);
+          color: #0ff;
+          min-height: 100vh;
+          padding: 20px;
+          font-family: monospace;
+        }
 
+        .box {
+          border: 1px solid #0ff;
+          padding: 10px;
+          margin: 10px;
+          background: rgba(0,255,255,0.05);
+        }
+
+        button {
+          background: black;
+          color: #0ff;
+          border: 1px solid #0ff;
+          margin: 4px;
+        }
+
+        button:hover {
+          box-shadow: 0 0 10px #0ff;
+        }
+
+        input {
+          background: black;
+          color: #0ff;
+          border: 1px solid #0ff;
+        }
+      `}</style>
+
+      <h1>😈 DARE DEVIL PRO</h1>
+
+      {/* LOGIN */}
       {!userId && (
-        <div>
+        <div className="box">
           <input placeholder="Email" onChange={e => setEmail(e.target.value)} />
-          <input type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} />
-          <button onClick={signup}>Signup</button>
-          <button onClick={login}>Login</button>
+          <input placeholder="Password" type="password" onChange={e => setPassword(e.target.value)} />
+          <input placeholder="Username" onChange={e => setUsername(e.target.value)} />
+
+          <button onClick={signup}>SIGNUP</button>
+          <button onClick={login}>LOGIN</button>
         </div>
       )}
 
+      {/* DASHBOARD */}
       {userId && (
-        <div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr 1fr" }}>
 
           {/* PROFILE */}
-          {user && (
-            <div>
-              <h2>Profile</h2>
-              <p>Points: {user.points}</p>
-            </div>
-          )}
-
-          {/* LEADERBOARD */}
-          <h2>🏆 Leaderboard</h2>
-          {leaders.map((u, i) => (
-            <p key={i}>#{i + 1} - {u.points} pts</p>
-          ))}
-
-          {/* ADMIN */}
-          {currentUser?.email === ADMIN_EMAIL && (
-            <div>
-              <input value={dare} onChange={e => setDare(e.target.value)} />
-              <input type="number" value={time} onChange={e => setTime(Number(e.target.value))} />
-              <button onClick={createDare}>Create Dare</button>
-            </div>
-          )}
+          <div className="box">
+            <h2>{user?.username}</h2>
+            <p>Points: {user?.points}</p>
+            <p>Level: {user?.level}</p>
+          </div>
 
           {/* DARES */}
-          <h2>Dares</h2>
-          {dares.map(d => (
-            <div key={d.id}>
-              <p>{d.text}</p>
-              {activeTimers[d.id] && <p>⏳ {activeTimers[d.id]}s</p>}
-              <button onClick={() => acceptDare(d)}>Accept</button>
-              <button onClick={passDare}>Pass</button>
-            </div>
-          ))}
+          <div className="box">
+            <h2>Dares</h2>
 
-          {/* CHAT */}
-          <h2>💬 Community Chat</h2>
-          <div style={{ maxHeight: 200, overflowY: "scroll" }}>
-            {messages.map((m, i) => (
-              <p key={i}><b>{m.user}:</b> {m.text}</p>
+            {currentUser?.email === ADMIN_EMAIL && (
+              <div>
+                <input value={dareText} onChange={e => setDareText(e.target.value)} />
+                <input type="number" value={time} onChange={e => setTime(+e.target.value)} />
+                <button onClick={createDare}>CREATE</button>
+              </div>
+            )}
+
+            {dares.map(d => (
+              <div key={d.id}>
+                <p>{d.text}</p>
+                {timers[d.id] && <p>⏳ {timers[d.id]}s</p>}
+
+                <button
+                  disabled={isLocked(d.id)}
+                  onClick={() => accept(d)}
+                >
+                  ACCEPT
+                </button>
+
+                <button
+                  disabled={isLocked(d.id)}
+                  onClick={() => pass(d)}
+                >
+                  PASS
+                </button>
+              </div>
             ))}
           </div>
 
-          <input value={msg} onChange={e => setMsg(e.target.value)} />
-          <button onClick={sendMessage}>Send</button>
+          {/* SOCIAL */}
+          <div className="box">
+
+            <h2>🏆 Leaderboard</h2>
+            {leaders.map((u, i) => (
+              <p key={i}>#{i+1} {u.username} - {u.points}</p>
+            ))}
+
+            <h2>💬 Chat</h2>
+
+            <div style={{ height: 120, overflow: "auto" }}>
+              {messages.map((m, i) => (
+                <p key={i}><b>{m.user}:</b> {m.text}</p>
+              ))}
+            </div>
+
+            <input value={msg} onChange={e => setMsg(e.target.value)} />
+            <button onClick={sendMessage}>SEND</button>
+
+          </div>
 
         </div>
       )}
+
     </div>
   );
 }
