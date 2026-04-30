@@ -1,19 +1,18 @@
 body {
+  margin: 0;
+  padding: 0;
   background: black;
-  color: white;
-  font-family: sans-serif;
-  text-align: center;
+  font-family: monospace;
 }
 
-button {
-  background: red;
-  color: white;
-  padding: 10px;
-  margin: 5px;
-  border: none;
-}
 @keyframes float {
   0% { transform: translateY(0px); }
   50% { transform: translateY(-12px); }
   100% { transform: translateY(0px); }
+}
+
+@keyframes glow {
+  0% { box-shadow: 0 0 10px #ff00ff; }
+  50% { box-shadow: 0 0 25px #ff00ff; }
+  100% { box-shadow: 0 0 10px #ff00ff; }
 }

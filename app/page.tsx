@@ -1,5 +1,6 @@
 "use client";
 
+import DevilScene from "../components/DevilScene";
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 
@@ -25,7 +26,7 @@ import {
   signOut
 } from "firebase/auth";
 
-/* ================= CYBER DEVIL STYLES ================= */
+/* ================= STYLES ================= */
 
 const styles: Record<string, CSSProperties> = {
   bg: {
@@ -40,19 +41,19 @@ const styles: Record<string, CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    height: "100vh"
   },
 
-  loginBox: {
+  box: {
     background: "rgba(0,0,0,0.6)",
     border: "1px solid #ff00ff",
     padding: 20,
     borderRadius: 12,
+    width: 300,
     display: "flex",
     flexDirection: "column",
-    gap: 10,
-    width: 300,
-    backdropFilter: "blur(10px)"
+    gap: 10
   },
 
   input: {
@@ -91,20 +92,12 @@ const styles: Record<string, CSSProperties> = {
     border: "1px solid #ff00ff",
     padding: 15,
     borderRadius: 10
-  },
-
-  /* 👹 DEVIL ANIMATION */
-  devil: {
-    width: 160,
-    filter: "drop-shadow(0 0 25px #ff00ff)",
-    animation: "float 3s ease-in-out infinite"
   }
 };
 
 /* ================= APP ================= */
 
 export default function Home() {
-
   const ADMIN_EMAIL = "itzmahendrr@gmail.com";
 
   const [email, setEmail] = useState("");
@@ -121,7 +114,7 @@ export default function Home() {
   const [msg, setMsg] = useState("");
   const [timer, setTimer] = useState<Record<string, number>>({});
 
-  /* AUTH LISTENER */
+  /* AUTH */
   useEffect(() => {
     return onAuthStateChanged(auth, (u) => {
       if (u) setUserId(u.uid);
@@ -130,35 +123,24 @@ export default function Home() {
 
   /* SIGNUP */
   const signup = async () => {
-    try {
-      if (!email.includes("@")) return alert("Invalid email");
-      if (!password || !username) return alert("Fill all fields");
+    const res = await createUserWithEmailAndPassword(auth, email, password);
 
-      const res = await createUserWithEmailAndPassword(auth, email, password);
+    await setDoc(doc(db, "users", res.user.uid), {
+      username,
+      email,
+      points: 0,
+      accepted: 0,
+      passed: 0,
+      done: {}
+    });
 
-      await setDoc(doc(db, "users", res.user.uid), {
-        username,
-        email,
-        points: 0,
-        accepted: 0,
-        passed: 0,
-        done: {}
-      });
-
-      setUserId(res.user.uid);
-    } catch (e: any) {
-      alert(e.message);
-    }
+    setUserId(res.user.uid);
   };
 
   /* LOGIN */
   const login = async () => {
-    try {
-      const res = await signInWithEmailAndPassword(auth, email, password);
-      setUserId(res.user.uid);
-    } catch (e: any) {
-      alert(e.message);
-    }
+    const res = await signInWithEmailAndPassword(auth, email, password);
+    setUserId(res.user.uid);
   };
 
   /* LOGOUT */
@@ -202,143 +184,4 @@ export default function Home() {
 
     await addDoc(collection(db, "chat"), {
       text: msg,
-      user: user?.username,
-      createdAt: new Date()
-    });
-
-    setMsg("");
-  };
-
-  /* ONE CHANCE RULE */
-  const done = (id: string) => user?.done?.[id];
-
-  /* ACCEPT */
-  const accept = async (d: any) => {
-    if (!user || done(d.id)) return;
-
-    await updateDoc(doc(db, "users", userId!), {
-      points: user.points + 100,
-      accepted: user.accepted + 1,
-      [`done.${d.id}`]: "accepted"
-    });
-
-    startTimer(d.id, d.time || 30);
-    initUser();
-  };
-
-  /* PASS */
-  const pass = async (d: any) => {
-    if (!user || done(d.id)) return;
-
-    await updateDoc(doc(db, "users", userId!), {
-      points: user.points - 200,
-      passed: user.passed + 1,
-      [`done.${d.id}`]: "passed"
-    });
-
-    initUser();
-  };
-
-  /* TIMER */
-  const startTimer = (id: string, sec: number) => {
-    if (timer[id]) return;
-
-    setTimer(prev => ({ ...prev, [id]: sec }));
-
-    const interval = setInterval(() => {
-      setTimer(prev => {
-        const t = (prev[id] || 0) - 1;
-        if (t <= 0) {
-          clearInterval(interval);
-          return { ...prev, [id]: 0 };
-        }
-        return { ...prev, [id]: t };
-      });
-    }, 1000);
-  };
-
-  /* LOAD */
-  useEffect(() => {
-    if (userId) {
-      initUser();
-      fetchDares();
-      fetchLeaders();
-      fetchChat();
-    }
-  }, [userId]);
-
-  return (
-    <div style={styles.bg}>
-
-      {/* LOGIN */}
-      {!userId && (
-        <div style={styles.center}>
-          <img
-            src="https://i.imgur.com/8Qf6vQp.png"
-            style={styles.devil}
-          />
-
-          <h1>😈 Cyber Devil Login</h1>
-
-          <div style={styles.loginBox}>
-            <input placeholder="Username" style={styles.input} onChange={e => setUsername(e.target.value)} />
-            <input placeholder="Email" style={styles.input} onChange={e => setEmail(e.target.value)} />
-            <input type="password" placeholder="Password" style={styles.input} onChange={e => setPassword(e.target.value)} />
-
-            <button style={styles.btn} onClick={signup}>ENTER REALM</button>
-            <button style={styles.ghost} onClick={login}>LOGIN</button>
-          </div>
-        </div>
-      )}
-
-      {/* DASHBOARD */}
-      {userId && (
-        <div style={styles.grid}>
-
-          {/* PROFILE */}
-          <div style={styles.card}>
-            <h2>{user?.username}</h2>
-            <p>XP: {user?.points}</p>
-            <button style={styles.ghost} onClick={logout}>Logout</button>
-          </div>
-
-          {/* DARES */}
-          <div style={styles.card}>
-            <h2>Dares</h2>
-
-            {dares.map(d => (
-              <div key={d.id}>
-                <p>{d.text}</p>
-
-                {timer[d.id] && <p>⏳ {timer[d.id]}s</p>}
-
-                <button disabled={done(d.id)} onClick={() => accept(d)}>Accept</button>
-                <button disabled={done(d.id)} onClick={() => pass(d)}>Pass</button>
-              </div>
-            ))}
-          </div>
-
-          {/* LEADER + CHAT */}
-          <div style={styles.card}>
-            <h2>🏆 Leaders</h2>
-            {leaders.map((l, i) => (
-              <p key={i}>{l.username} - {l.points}</p>
-            ))}
-
-            <h2>💬 Chat</h2>
-            <div style={{ height: 120, overflow: "auto" }}>
-              {messages.map((m, i) => (
-                <p key={i}><b>{m.user}:</b> {m.text}</p>
-              ))}
-            </div>
-
-            <input style={styles.input} value={msg} onChange={e => setMsg(e.target.value)} />
-            <button style={styles.btn} onClick={sendMsg}>Send</button>
-          </div>
-
-        </div>
-      )}
-
-    </div>
-  );
-}
+      user: user?.username
