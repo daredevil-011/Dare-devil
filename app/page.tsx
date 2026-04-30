@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
+
 import { db, auth } from "../firebase";
 import {
   collection,
@@ -23,91 +25,171 @@ import {
   signOut
 } from "firebase/auth";
 
+/* ================= CYBER DEVIL STYLES ================= */
+
+const styles: Record<string, CSSProperties> = {
+  bg: {
+    minHeight: "100vh",
+    background: "radial-gradient(circle at top, #1a001f, #000)",
+    color: "#00fff2",
+    fontFamily: "monospace",
+    padding: 20
+  },
+
+  center: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+
+  loginBox: {
+    background: "rgba(0,0,0,0.6)",
+    border: "1px solid #ff00ff",
+    padding: 20,
+    borderRadius: 12,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    width: 300,
+    backdropFilter: "blur(10px)"
+  },
+
+  input: {
+    padding: 10,
+    background: "#000",
+    border: "1px solid #ff00ff",
+    color: "#fff",
+    outline: "none"
+  },
+
+  btn: {
+    padding: 10,
+    background: "#ff00ff",
+    border: "none",
+    color: "#000",
+    fontWeight: "bold",
+    cursor: "pointer"
+  },
+
+  ghost: {
+    padding: 10,
+    background: "transparent",
+    border: "1px solid #ff00ff",
+    color: "#ff00ff",
+    cursor: "pointer"
+  },
+
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 2fr 1fr",
+    gap: 20
+  },
+
+  card: {
+    background: "rgba(0,0,0,0.5)",
+    border: "1px solid #ff00ff",
+    padding: 15,
+    borderRadius: 10
+  },
+
+  /* 👹 DEVIL ANIMATION */
+  devil: {
+    width: 160,
+    filter: "drop-shadow(0 0 25px #ff00ff)",
+    animation: "float 3s ease-in-out infinite"
+  }
+};
+
+/* ================= APP ================= */
+
 export default function Home() {
 
   const ADMIN_EMAIL = "itzmahendrr@gmail.com";
 
-  // AUTH
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
-  const [userId, setUserId] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
 
-  // DATA
-  const [user, setUser] = useState(null);
-  const [dares, setDares] = useState([]);
-  const [leaders, setLeaders] = useState([]);
-  const [messages, setMessages] = useState([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
 
-  const [dareText, setDareText] = useState("");
+  const [dares, setDares] = useState<any[]>([]);
+  const [leaders, setLeaders] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+
   const [msg, setMsg] = useState("");
+  const [timer, setTimer] = useState<Record<string, number>>({});
 
-  // AUTH LISTENER
+  /* AUTH LISTENER */
   useEffect(() => {
     return onAuthStateChanged(auth, (u) => {
-      if (u) {
-        setUserId(u.uid);
-        setCurrentUser(u);
-      }
+      if (u) setUserId(u.uid);
     });
   }, []);
 
-  // SIGNUP
+  /* SIGNUP */
   const signup = async () => {
-    if (!username) return alert("Enter username");
+    try {
+      if (!email.includes("@")) return alert("Invalid email");
+      if (!password || !username) return alert("Fill all fields");
 
-    const res = await createUserWithEmailAndPassword(auth, email, password);
+      const res = await createUserWithEmailAndPassword(auth, email, password);
 
-    await setDoc(doc(db, "users", res.user.uid), {
-      username,
-      email,
-      points: 0,
-      accepted: 0,
-      passed: 0,
-      dareResponses: {},
-      createdAt: new Date()
-    });
+      await setDoc(doc(db, "users", res.user.uid), {
+        username,
+        email,
+        points: 0,
+        accepted: 0,
+        passed: 0,
+        done: {}
+      });
 
-    setUserId(res.user.uid);
+      setUserId(res.user.uid);
+    } catch (e: any) {
+      alert(e.message);
+    }
   };
 
-  // LOGIN
+  /* LOGIN */
   const login = async () => {
-    const res = await signInWithEmailAndPassword(auth, email, password);
-    setUserId(res.user.uid);
+    try {
+      const res = await signInWithEmailAndPassword(auth, email, password);
+      setUserId(res.user.uid);
+    } catch (e: any) {
+      alert(e.message);
+    }
   };
 
-  // LOGOUT
+  /* LOGOUT */
   const logout = async () => {
     await signOut(auth);
     setUserId(null);
     setUser(null);
-    setCurrentUser(null);
   };
 
-  // INIT USER
+  /* INIT USER */
   const initUser = async () => {
     if (!userId) return;
     const snap = await getDoc(doc(db, "users", userId));
     if (snap.exists()) setUser(snap.data());
   };
 
-  // FETCH DARES
+  /* DARES */
   const fetchDares = async () => {
     const snap = await getDocs(collection(db, "dares"));
     setDares(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   };
 
-  // LEADERBOARD
-  const fetchLeaderboard = () => {
+  /* LEADERBOARD */
+  const fetchLeaders = () => {
     const q = query(collection(db, "users"), orderBy("points", "desc"), limit(10));
     onSnapshot(q, snap => {
       setLeaders(snap.docs.map(d => d.data()));
     });
   };
 
-  // CHAT
+  /* CHAT */
   const fetchChat = () => {
     const q = query(collection(db, "chat"), orderBy("createdAt"));
     onSnapshot(q, snap => {
@@ -115,7 +197,7 @@ export default function Home() {
     });
   };
 
-  const sendMessage = async () => {
+  const sendMsg = async () => {
     if (!msg) return;
 
     await addDoc(collection(db, "chat"), {
@@ -127,37 +209,60 @@ export default function Home() {
     setMsg("");
   };
 
-  const isLocked = (id) => user?.dareResponses?.[id];
+  /* ONE CHANCE RULE */
+  const done = (id: string) => user?.done?.[id];
 
-  const accept = async (d) => {
-    if (!user || isLocked(d.id)) return;
+  /* ACCEPT */
+  const accept = async (d: any) => {
+    if (!user || done(d.id)) return;
 
-    await updateDoc(doc(db, "users", userId), {
+    await updateDoc(doc(db, "users", userId!), {
       points: user.points + 100,
       accepted: user.accepted + 1,
-      [`dareResponses.${d.id}`]: "accepted"
+      [`done.${d.id}`]: "accepted"
     });
 
+    startTimer(d.id, d.time || 30);
     initUser();
   };
 
-  const pass = async (d) => {
-    if (!user || isLocked(d.id)) return;
+  /* PASS */
+  const pass = async (d: any) => {
+    if (!user || done(d.id)) return;
 
-    await updateDoc(doc(db, "users", userId), {
+    await updateDoc(doc(db, "users", userId!), {
       points: user.points - 200,
       passed: user.passed + 1,
-      [`dareResponses.${d.id}`]: "passed"
+      [`done.${d.id}`]: "passed"
     });
 
     initUser();
   };
 
+  /* TIMER */
+  const startTimer = (id: string, sec: number) => {
+    if (timer[id]) return;
+
+    setTimer(prev => ({ ...prev, [id]: sec }));
+
+    const interval = setInterval(() => {
+      setTimer(prev => {
+        const t = (prev[id] || 0) - 1;
+        if (t <= 0) {
+          clearInterval(interval);
+          return { ...prev, [id]: 0 };
+        }
+        return { ...prev, [id]: t };
+      });
+    }, 1000);
+  };
+
+  /* LOAD */
   useEffect(() => {
     if (userId) {
       initUser();
       fetchDares();
-      fetchLeaderboard();
+      fetchLeaders();
       fetchChat();
     }
   }, [userId]);
@@ -165,192 +270,75 @@ export default function Home() {
   return (
     <div style={styles.bg}>
 
-      {/* 🌌 LOGIN — ANIME 3D DEVIL SCENE */}
+      {/* LOGIN */}
       {!userId && (
-        <div style={styles.scene}>
+        <div style={styles.center}>
+          <img
+            src="https://i.imgur.com/8Qf6vQp.png"
+            style={styles.devil}
+          />
 
-          <div style={styles.glow}></div>
+          <h1>😈 Cyber Devil Login</h1>
 
-          <div style={styles.characterWrap}>
-            <img
-              src="https://i.imgur.com/8Qf6vQp.png"
-              style={styles.character}
-              alt="devil"
-            />
-            <h1 style={styles.title}>☠ Welcome Soul</h1>
-            <p style={styles.sub}>Enter the Dare Realm</p>
+          <div style={styles.loginBox}>
+            <input placeholder="Username" style={styles.input} onChange={e => setUsername(e.target.value)} />
+            <input placeholder="Email" style={styles.input} onChange={e => setEmail(e.target.value)} />
+            <input type="password" placeholder="Password" style={styles.input} onChange={e => setPassword(e.target.value)} />
+
+            <button style={styles.btn} onClick={signup}>ENTER REALM</button>
+            <button style={styles.ghost} onClick={login}>LOGIN</button>
           </div>
-
-          <div style={styles.box}>
-            <input placeholder="Email" onChange={e => setEmail(e.target.value)} style={styles.input} />
-            <input placeholder="Password" type="password" onChange={e => setPassword(e.target.value)} style={styles.input} />
-            <input placeholder="Username" onChange={e => setUsername(e.target.value)} style={styles.input} />
-
-            <button onClick={signup} style={styles.btn}>ENTER HELL</button>
-            <button onClick={login} style={styles.btnGhost}>RETURN SOUL</button>
-          </div>
-
         </div>
       )}
 
-      {/* ⚔ DASHBOARD */}
+      {/* DASHBOARD */}
       {userId && (
         <div style={styles.grid}>
 
           {/* PROFILE */}
-          <div>
+          <div style={styles.card}>
             <h2>{user?.username}</h2>
             <p>XP: {user?.points}</p>
-
-            <button onClick={logout} style={styles.logout}>
-              Logout
-            </button>
+            <button style={styles.ghost} onClick={logout}>Logout</button>
           </div>
 
           {/* DARES */}
-          <div>
+          <div style={styles.card}>
             <h2>Dares</h2>
-
-            {currentUser?.email === ADMIN_EMAIL && (
-              <div>
-                <input value={dareText} onChange={e => setDareText(e.target.value)} />
-                <button onClick={() =>
-                  addDoc(collection(db, "dares"), {
-                    text: dareText,
-                    createdAt: new Date()
-                  })
-                }>
-                  Create
-                </button>
-              </div>
-            )}
 
             {dares.map(d => (
               <div key={d.id}>
                 <p>{d.text}</p>
 
-                <button disabled={isLocked(d.id)} onClick={() => accept(d)}>
-                  Accept
-                </button>
+                {timer[d.id] && <p>⏳ {timer[d.id]}s</p>}
 
-                <button disabled={isLocked(d.id)} onClick={() => pass(d)}>
-                  Pass
-                </button>
+                <button disabled={done(d.id)} onClick={() => accept(d)}>Accept</button>
+                <button disabled={done(d.id)} onClick={() => pass(d)}>Pass</button>
               </div>
             ))}
           </div>
 
-          {/* SOCIAL */}
-          <div>
+          {/* LEADER + CHAT */}
+          <div style={styles.card}>
             <h2>🏆 Leaders</h2>
-            {leaders.map((u, i) => (
-              <p key={i}>#{i + 1} {u.username} - {u.points}</p>
+            {leaders.map((l, i) => (
+              <p key={i}>{l.username} - {l.points}</p>
             ))}
 
             <h2>💬 Chat</h2>
-
             <div style={{ height: 120, overflow: "auto" }}>
               {messages.map((m, i) => (
                 <p key={i}><b>{m.user}:</b> {m.text}</p>
               ))}
             </div>
 
-            <input value={msg} onChange={e => setMsg(e.target.value)} />
-            <button onClick={sendMessage}>Send</button>
+            <input style={styles.input} value={msg} onChange={e => setMsg(e.target.value)} />
+            <button style={styles.btn} onClick={sendMsg}>Send</button>
           </div>
 
         </div>
       )}
+
     </div>
   );
 }
-
-/* ================= CYBER ANIME STYLES ================= */
-
-const styles = {
-
-  bg: {
-    background: "#05010a",
-    color: "#0ff",
-    minHeight: "100vh",
-    fontFamily: "monospace"
-  },
-
-  scene: {
-    height: "100vh",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center"
-  },
-
-  glow: {
-    position: "absolute",
-    width: 400,
-    height: 400,
-    background: "radial-gradient(circle, purple, transparent)",
-    filter: "blur(120px)",
-    opacity: 0.4
-  },
-
-  characterWrap: {
-    textAlign: "center"
-  },
-
-  character: {
-    width: 180,
-    filter: "drop-shadow(0 0 25px purple)",
-    animation: "float 3s infinite ease-in-out"
-  },
-
-  title: {
-    color: "#ff00ff"
-  },
-
-  sub: {
-    color: "#aaa"
-  },
-
-  box: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 10,
-    padding: 20,
-    border: "1px solid purple",
-    background: "rgba(0,0,0,0.5)"
-  },
-
-  input: {
-    padding: 10,
-    background: "black",
-    border: "1px solid purple",
-    color: "white"
-  },
-
-  btn: {
-    background: "purple",
-    padding: 10,
-    color: "white"
-  },
-
-  btnGhost: {
-    background: "transparent",
-    border: "1px solid purple",
-    color: "purple",
-    padding: 10
-  },
-
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 2fr 1fr",
-    gap: 20,
-    padding: 20
-  },
-
-  logout: {
-    background: "red",
-    color: "white",
-    border: "none",
-    padding: 8
-  }
-};
